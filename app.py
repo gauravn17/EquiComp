@@ -33,19 +33,26 @@ st.markdown("""
         margin-bottom: 1rem;
     }
     .logo-image {
-        width: 80px;
-        height: 80px;
+        width: 120px;
+        height: 120px;
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
     }
     .brand-title {
         font-size: 3rem;
         font-weight: bold;
         color: #000000;
         margin: 0;
+        line-height: 1.2;
     }
     .brand-subtitle {
-        font-size: 1rem;
+        font-size: 1.1rem;
         color: #666;
         margin: 0;
+        margin-top: 0.25rem;
+    }
+    /* Add subtle shadow to images for better visibility */
+    img {
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
     }
     .status-box {
         padding: 1rem;
@@ -146,12 +153,12 @@ def render_company_card(comp: Dict[str, Any], rank: int):
 
 def main():
     # Header with logo
-    col1, col2 = st.columns([1, 5])
+    col1, col2 = st.columns([1, 4])
     
     with col1:
-        # Display logo
+        # Display logo - larger and more prominent
         try:
-            st.image("compiq.png", width=80)
+            st.image("compiq.png", width=120)
         except:
             st.markdown("🔍")
     
@@ -167,14 +174,16 @@ def main():
     
     # Sidebar
     with st.sidebar:
-        # Logo in sidebar
-        try:
-            st.image("compiq.png", width=60)
-        except:
-            pass
+        # Logo in sidebar - centered and larger
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            try:
+                st.image("compiq.png", width=100)
+            except:
+                pass
         
-        st.markdown("### CompIQ")
-        st.caption("AI Comparables Finder")
+        st.markdown("<h3 style='text-align: center;'>CompIQ</h3>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #666;'>AI Comparables Finder</p>", unsafe_allow_html=True)
         
         st.divider()
         
@@ -188,8 +197,12 @@ def main():
             help="Your OpenAI API key for running the analysis"
         )
         
-        if api_key:
+        if not api_key:
+            st.warning("⚠️ Please enter your OpenAI API key to use CompIQ")
+            st.info("💡 Get your API key at: https://platform.openai.com/api-keys")
+        else:
             os.environ["OPENAI_API_KEY"] = api_key
+            st.success("✅ API key configured")
         
         st.divider()
         
