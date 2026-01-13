@@ -11,7 +11,7 @@ from database import Database, SearchHistory
 
 # Page configuration
 st.set_page_config(
-    page_title="AI Comparables Finder",
+    page_title="CompIQ - AI Comparables Finder",
     page_icon="🔍",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -25,6 +25,27 @@ st.markdown("""
         font-weight: bold;
         color: #1f77b4;
         margin-bottom: 0.5rem;
+    }
+    .logo-container {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+    .logo-image {
+        width: 80px;
+        height: 80px;
+    }
+    .brand-title {
+        font-size: 3rem;
+        font-weight: bold;
+        color: #000000;
+        margin: 0;
+    }
+    .brand-subtitle {
+        font-size: 1rem;
+        color: #666;
+        margin: 0;
     }
     .status-box {
         padding: 1rem;
@@ -124,12 +145,39 @@ def render_company_card(comp: Dict[str, Any], rank: int):
             st.info(f"ℹ️ **Needs Verification:** {comp.get('_verification_note', 'Manual check recommended')}")
 
 def main():
-    # Header
-    st.markdown('<p class="main-header">🔍 AI Comparables Finder</p>', unsafe_allow_html=True)
-    st.markdown("Find publicly-traded comparable companies using AI-powered analysis")
+    # Header with logo
+    col1, col2 = st.columns([1, 5])
+    
+    with col1:
+        # Display logo
+        try:
+            st.image("logo.png", width=80)
+        except:
+            st.markdown("🔍")
+    
+    with col2:
+        st.markdown("""
+        <div>
+            <h1 class="brand-title">CompIQ</h1>
+            <p class="brand-subtitle">AI-Powered Comparable Company Analysis</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.divider()
     
     # Sidebar
     with st.sidebar:
+        # Logo in sidebar
+        try:
+            st.image("logo.png", width=60)
+        except:
+            pass
+        
+        st.markdown("### CompIQ")
+        st.caption("AI Comparables Finder")
+        
+        st.divider()
+        
         st.header("⚙️ Configuration")
         
         # API Key
