@@ -1,5 +1,7 @@
 # 🔍 EquiComp - Agentic AI Comparables Finder
 
+![img](equicomp.png)
+
 An intelligent, agentic system for finding publicly-traded comparable companies using AI-powered analysis.
 
 ![Demo](https://img.shields.io/badge/Status-Demo%20Ready-brightgreen)
