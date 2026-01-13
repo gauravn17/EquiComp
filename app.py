@@ -151,7 +151,7 @@ def main():
     with col1:
         # Display logo
         try:
-            st.image("logo.png", width=80)
+            st.image("compiq.png", width=80)
         except:
             st.markdown("🔍")
     
@@ -169,7 +169,7 @@ def main():
     with st.sidebar:
         # Logo in sidebar
         try:
-            st.image("logo.png", width=60)
+            st.image("compiq.png", width=60)
         except:
             pass
         
