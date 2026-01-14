@@ -98,6 +98,13 @@ st.markdown("""
         padding: 1rem;
         margin: 0.5rem 0;
         background-color: white;
+        transition: box-shadow 0.2s ease;
+    }
+    .company-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .company-card h3 {
+        color: #1f77b4;
     }
     .score-badge {
         display: inline-block;
@@ -146,55 +153,76 @@ def get_score_class(score: float) -> str:
         return "score-low"
 
 def render_company_card(comp: Dict[str, Any], rank: int):
-    """Render a single comparable company card"""
+    """Render a single comparable company card - compact layout"""
     score = comp.get('validation_score', 0)
     score_class = get_score_class(score)
     
-    st.markdown(f"""
+    # Get financial data if available
+    fin = comp.get('financials', {})
+    
+    # Build the card HTML
+    card_html = f"""
     <div class="company-card">
-        <div style="display: flex; justify-content: space-between; align-items: start;">
-            <div>
-                <h3 style="margin: 0 0 0.5rem 0;">{rank}. {comp['name']}</h3>
-                <p style="margin: 0; color: #666;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+            <div style="flex: 1;">
+                <h3 style="margin: 0; font-size: 1.3rem;">{rank}. {comp['name']}</h3>
+                <p style="margin: 0.25rem 0 0 0; color: #666; font-size: 0.9rem;">
                     <strong>{comp['ticker']}</strong> • {comp['exchange']}
                 </p>
             </div>
-            <span class="score-badge {score_class}">{score:.2f}</span>
+            <span class="score-badge {score_class}" style="font-size: 1.1rem; padding: 0.4rem 0.9rem;">{score:.2f}</span>
         </div>
-        <p style="margin: 1rem 0;"><strong>Business:</strong> {comp.get('business_activity', 'N/A')[:200]}...</p>
-    </div>
-    """, unsafe_allow_html=True)
+        
+        <p style="margin: 0.5rem 0; font-size: 0.95rem; line-height: 1.4;">
+            {comp.get('business_activity', 'N/A')[:180]}...
+        </p>
+    """
     
-    # Expandable details
-    with st.expander("View Details"):
+    # Add financial metrics inline if available
+    if ENHANCED_FEATURES and fin.get('market_cap_formatted'):
+        card_html += f"""
+        <div style="display: flex; gap: 1.5rem; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #eee; font-size: 0.85rem;">
+            <span><strong>Market Cap:</strong> {fin.get('market_cap_formatted', 'N/A')}</span>
+            <span><strong>Revenue:</strong> {fin.get('revenue_ttm_formatted', 'N/A')}</span>
+            <span><strong>EV/Rev:</strong> {fin.get('ev_to_revenue', 'N/A')}x</span>
+        </div>
+        """
+    
+    card_html += "</div>"
+    
+    st.markdown(card_html, unsafe_allow_html=True)
+    
+    # Expandable details - more compact
+    with st.expander("📊 View Details", expanded=False):
         col1, col2 = st.columns(2)
         with col1:
-            st.write("**Customer Segment:**", comp.get('customer_segment', 'N/A'))
-            st.write("**SIC Industry:**", comp.get('SIC_industry', 'N/A'))
-            st.write("**Website:**", comp.get('url', 'N/A'))
+            st.markdown("**📍 Business Info:**")
+            st.write(f"• Customer: {comp.get('customer_segment', 'N/A')}")
+            st.write(f"• Industry: {comp.get('SIC_industry', 'N/A')}")
+            st.write(f"• [Website]({comp.get('url', '#')})")
             
             # Show financial data if available
             if ENHANCED_FEATURES and comp.get('financials'):
                 fin = comp['financials']
-                st.write("---")
-                st.write("**💰 Financial Metrics:**")
-                if fin.get('market_cap_formatted'):
-                    st.write(f"Market Cap: {fin['market_cap_formatted']}")
-                if fin.get('revenue_ttm_formatted'):
-                    st.write(f"Revenue (TTM): {fin['revenue_ttm_formatted']}")
-                if fin.get('ev_to_revenue'):
-                    st.write(f"EV/Revenue: {fin['ev_to_revenue']:.2f}x")
+                st.markdown("**💰 Financials:**")
+                if fin.get('revenue_growth'):
+                    st.write(f"• Revenue Growth: {fin['revenue_growth']*100:.1f}%")
+                if fin.get('profit_margin'):
+                    st.write(f"• Profit Margin: {fin['profit_margin']*100:.1f}%")
+                if fin.get('employees'):
+                    st.write(f"• Employees: {fin['employees']:,}")
         
         with col2:
-            st.write("**Score Breakdown:**")
+            st.markdown("**🎯 Score Breakdown:**")
             breakdown = comp.get('score_breakdown', {})
             for key, value in breakdown.items():
-                st.write(f"- {key}: {value}")
+                display_key = key.replace('_', ' ').title()
+                st.write(f"• {display_key}: {value}")
         
         if comp.get('_caveat'):
-            st.warning(f"⚠️ **Caveat:** {comp['_caveat']}")
+            st.warning(f"⚠️ {comp['_caveat']}")
         if comp.get('_needs_verification'):
-            st.info(f"ℹ️ **Needs Verification:** {comp.get('_verification_note', 'Manual check recommended')}")
+            st.info(f"ℹ️ {comp.get('_verification_note', 'Manual verification recommended')}")
 
 def main():
     # Header with logo
