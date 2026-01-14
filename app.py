@@ -75,9 +75,22 @@ st.markdown("""
     .status-complete { border-color: #1f77b4; background-color: #e3f2fd; }
     .metric-card {
         background-color: #f0f2f6;
-        padding: 1rem;
+        padding: 1.5rem 1rem;
         border-radius: 0.5rem;
         text-align: center;
+        border: 1px solid #e0e0e0;
+    }
+    .metric-card h2 {
+        color: #1f77b4 !important;
+        font-size: 2.5rem !important;
+        margin: 0 !important;
+        font-weight: bold !important;
+    }
+    .metric-card p {
+        color: #333 !important;
+        font-size: 0.9rem !important;
+        margin: 0.5rem 0 0 0 !important;
+        font-weight: 500 !important;
     }
     .company-card {
         border: 1px solid #e0e0e0;
@@ -418,16 +431,16 @@ def main():
             
             col1, col2, col3, col4 = st.columns(4)
             with col1:
-                st.markdown(f'<div class="metric-card"><h2>{len(comparables)}</h2><p>Comparables Found</p></div>', unsafe_allow_html=True)
+                st.metric("Comparables Found", len(comparables))
             with col2:
                 avg_score = sum(c['validation_score'] for c in comparables) / len(comparables) if comparables else 0
-                st.markdown(f'<div class="metric-card"><h2>{avg_score:.2f}</h2><p>Avg Score</p></div>', unsafe_allow_html=True)
+                st.metric("Avg Score", f"{avg_score:.2f}")
             with col3:
                 num_rejected = len(metadata.get('rejected_companies', []))
-                st.markdown(f'<div class="metric-card"><h2>{num_rejected}</h2><p>Rejected</p></div>', unsafe_allow_html=True)
+                st.metric("Rejected", num_rejected)
             with col4:
                 specialization = metadata.get('analysis', {}).get('specialization_level', 0)
-                st.markdown(f'<div class="metric-card"><h2>{specialization:.2f}</h2><p>Specialization</p></div>', unsafe_allow_html=True)
+                st.metric("Specialization", f"{specialization:.2f}")
             
             st.divider()
             
