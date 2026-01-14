@@ -9,14 +9,6 @@ import json
 from comps_agent import ComparablesAgent
 from database import Database, SearchHistory
 
-# Logo fetcher for company logos
-try:
-    from logo_fetcher import CompanyLogoFetcher, get_logo_html, add_logos_to_comparables
-    LOGOS_ENABLED = True
-except ImportError:
-    LOGOS_ENABLED = False
-    print("⚠️ Logo fetcher not available")
-
 # Try to import v2.0 features (graceful degradation if not available)
 try:
     from financial_data import FinancialDataEnricher
@@ -67,7 +59,6 @@ st.markdown("""
         margin: 0;
         margin-top: 0.5rem;
     }
-    /* Add subtle shadow to images for better visibility */
     img {
         filter: drop-shadow(0 2px 6px rgba(0,0,0,0.15));
     }
@@ -163,7 +154,7 @@ def get_score_class(score: float) -> str:
 def get_logo_url(comp: Dict[str, Any]) -> tuple:
     """
     Get company logo URL with smart fallback.
-    Returns (primary_url, fallback_url)
+    Returns (primary_url, fallback_url, fallback_url2)
     """
     # Extract domain from homepage URL
     homepage = comp.get('homepage_url', comp.get('url', ''))
@@ -322,7 +313,7 @@ def main():
         api_key = st.text_input(
             "OpenAI API Key",
             type="password",
-            value="",  # Never show existing key
+            value="",
             placeholder="sk-proj-...",
             help="Your OpenAI API key for running the analysis. Get one at: https://platform.openai.com/api-keys"
         )
@@ -378,7 +369,6 @@ def main():
                     st.write(f"**Date:** {search['timestamp'][:10]}")
                     st.write(f"**Found:** {search['num_comparables']} companies")
                     if st.button(f"Load", key=f"load_{search['id']}"):
-                        # Load previous search
                         results = st.session_state.db.get_search_results(search['id'])
                         if results:
                             st.session_state.search_results = {
@@ -469,13 +459,6 @@ def main():
                         
                         enricher = FinancialDataEnricher()
                         results['comparables'] = enricher.enrich_batch(results['comparables'])
-                    
-                    # Fetch company logos
-                    if LOGOS_ENABLED:
-                        progress_bar.progress(97)
-                        status_container.markdown('<div class="status-box status-analyzing">🎨 Loading company logos...</div>', unsafe_allow_html=True)
-                        
-                        results['comparables'] = add_logos_to_comparables(results['comparables'])
                     
                     progress_bar.progress(100)
                     status_container.markdown('<div class="status-box status-complete">✅ Search complete!</div>', unsafe_allow_html=True)
@@ -675,7 +658,6 @@ def main():
                 )
             
             with col3:
-                # Excel export would go here
                 st.button("📊 Generate Report", use_container_width=True, help="Coming soon!")
         
         else:
@@ -698,3 +680,4 @@ if __name__ == "__main__":
     # Load history on startup
     load_search_history()
     main()
+
