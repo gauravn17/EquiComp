@@ -590,6 +590,81 @@ def main():
                 ---
                 *Powered by OpenAI GPT-4 & Yahoo Finance*
                 """)
+
+     if submitted and company_name and company_description:
+            if not (api_key or env_key):
+                st.error("⚠️ Please provide an OpenAI API key in the sidebar")
+            else:
+                # Create target company dict
+                target = {
+                    "name": company_name,
+                    "description": company_description,
+                    "homepage_url": homepage_url or "https://example.com",
+                    "primary_sic": primary_sic or "Unknown"
+                }
+                
+                # Progress tracking
+                progress_bar = st.progress(0)
+                status_container = st.container()
+                
+                with status_container:
+                    st.markdown('<div class="status-box status-analyzing">⏳ Analyzing target company...</div>', unsafe_allow_html=True)
+                
+                try:
+                    # Initialize agent
+                    agent = ComparablesAgent(
+                        min_required=min_required,
+                        max_allowed=max_allowed,
+                        max_attempts=max_attempts
+                    )
+                    
+                    # Run search with progress updates
+                    progress_bar.progress(10)
+                    status_container.markdown('<div class="status-box status-analyzing">🧠 Analyzing target company...</div>', unsafe_allow_html=True)
+                    
+                    results = agent.find_comparables(
+                        target_company=target,
+                        progress_callback=lambda p, s: (
+                            progress_bar.progress(p),
+                            status_container.markdown(f'<div class="status-box status-{s.lower().replace(" ", "-")}">{s}</div>', unsafe_allow_html=True)
+                        )
+                    )
+                    
+                    progress_bar.progress(100)
+                    status_container.markdown('<div class="status-box status-complete">✅ Search complete!</div>', unsafe_allow_html=True)
+                    
+                    # Enrich with financial data if enabled
+                    if ENHANCED_FEATURES and enable_financials and results['comparables']:
+                        status_container.markdown('<div class="status-box status-analyzing">💰 Fetching financial data...</div>', unsafe_allow_html=True)
+                        enricher = FinancialDataEnricher()
+                        enriched = enricher.enrich_batch(results['comparables'], show_progress=False)
+                        results['comparables'] = enriched
+                    
+                    # Store results
+                    st.session_state.search_results = results
+                    
+                    # Save to database
+                    st.session_state.db.save_search(
+                        target_name=company_name,
+                        target_data=target,
+                        comparables=results['comparables'],
+                        metadata=results['metadata']
+                    )
+                    
+                    # Reload history
+                    load_search_history()
+                    
+                    # Switch to results tab
+                    time.sleep(1)
+                    st.success("✅ Search complete! View results in the Results tab.")
+                    
+                except Exception as e:
+                    st.error(f"❌ Error during search: {str(e)}")
+                    import traceback
+                    with st.expander("🔍 Error Details"):
+                        st.code(traceback.format_exc())
+                finally:
+                    progress_bar.empty()
         
 
         with tab2:
