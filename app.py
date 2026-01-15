@@ -156,30 +156,60 @@ def get_logo_url(comp: Dict[str, Any]) -> tuple:
     Get company logo URL with smart fallback.
     Returns (primary_url, fallback_url, fallback_url2)
     """
+    # Manual mapping for common companies with tricky names
+    DOMAIN_MAP = {
+        'dell technologies': 'dell.com',
+        'hewlett packard': 'hp.com',
+        'hp inc': 'hp.com',
+        'xiaomi corporation': 'xiaomi.com',
+        'acer incorporated': 'acer.com',
+        'acer inc': 'acer.com',
+        'international business machines': 'ibm.com',
+        'microsoft corporation': 'microsoft.com',
+        'apple inc': 'apple.com',
+        'alphabet inc': 'google.com',
+        'meta platforms': 'meta.com',
+        'amazon.com inc': 'amazon.com',
+    }
+    
     # Extract domain from homepage URL
     homepage = comp.get('homepage_url', comp.get('url', ''))
     if homepage:
         domain = homepage.replace('https://', '').replace('http://', '').split('/')[0]
     else:
-        # Try to construct from company name
-        name = comp.get('name', '').lower().replace(' ', '').replace(',', '').replace('.', '')
-        domain = f"{name}.com"
+        # Try manual mapping first
+        name_lower = comp.get('name', '').lower()
+        domain = None
+        
+        for key, mapped_domain in DOMAIN_MAP.items():
+            if key in name_lower:
+                domain = mapped_domain
+                break
+        
+        # If no mapping found, construct from company name
+        if not domain:
+            name = comp.get('name', '').lower()
+            # Remove common suffixes
+            for suffix in [' inc.', ' inc', ' corporation', ' corp.', ' corp', ' ltd.', ' ltd', ' llc', ' technologies', ' group', ' company']:
+                name = name.replace(suffix, '')
+            name = name.strip().replace(' ', '').replace(',', '').replace('.', '')
+            domain = f"{name}.com"
     
     ticker = comp.get('ticker', 'N/A')
     
-    # Primary: Clearbit (free, high quality)
-    clearbit_url = f"https://logo.clearbit.com/{domain}"
-    
-    # Fallback 1: Google Favicon (always works)
+    # Primary: Google Favicon (always works, reliable)
     google_url = f"https://www.google.com/s2/favicons?domain={domain}&sz=128"
     
-    # Fallback 2: UI Avatars (generated from ticker)
-    avatar_url = f"https://ui-avatars.com/api/?name={ticker}&size=64&background=1f77b4&color=fff&bold=true"
+    # Fallback 1: UI Avatars (generated from ticker)
+    avatar_url = f"https://ui-avatars.com/api/?name={ticker}&size=64&background=667eea&color=fff&bold=true&font-size=0.5"
     
-    return clearbit_url, google_url, avatar_url
+    # Fallback 2: DuckDuckGo icons (another reliable service)
+    ddg_url = f"https://icons.duckduckgo.com/ip3/{domain}.ico"
+    
+    return google_url, avatar_url, ddg_url
 
 def render_company_card(comp: Dict[str, Any], rank: int):
-    """Render a single comparable company card - compact layout with logo"""
+    """Render a single comparable company card - using Streamlit native components"""
     score = comp.get('validation_score', 0)
     score_class = get_score_class(score)
     
@@ -189,46 +219,43 @@ def render_company_card(comp: Dict[str, Any], rank: int):
     # Get financial data if available
     fin = comp.get('financials', {})
     
-    # Build the card HTML with logo - NO INDENTATION in the string
-    card_html = f"""<div class="company-card">
-    <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 0.75rem;">
-        <img src="{logo_primary}" 
-             onerror="this.onerror=null; this.src='{logo_fallback1}';"
-             style="width: 56px; height: 56px; border-radius: 8px; object-fit: contain; background: #f8f9fa; padding: 4px; border: 1px solid #e0e0e0; flex-shrink: 0;"
-             alt="{comp['name']} logo">
-        <div style="flex: 1; min-width: 0;">
-            <h3 style="margin: 0; font-size: 1.3rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{rank}. {comp['name']}</h3>
-            <p style="margin: 0.25rem 0 0 0; color: #666; font-size: 0.9rem;">
-                <strong>{comp['ticker']}</strong> • {comp['exchange']}
-            </p>
-        </div>
-        <span class="score-badge {score_class}" style="font-size: 1.1rem; padding: 0.4rem 0.9rem; flex-shrink: 0;">{score:.2f}</span>
-    </div>
-    <p style="margin: 0.5rem 0 0.5rem 72px; font-size: 0.95rem; line-height: 1.4; color: #333;">
-        {comp.get('business_activity', 'N/A')[:180]}...
-    </p>"""
-    
-    # Add financial metrics inline if available
-    if ENHANCED_FEATURES and fin.get('market_cap_formatted'):
-        card_html += f"""<div style="display: flex; gap: 1.5rem; margin: 0.75rem 0 0 72px; padding-top: 0.75rem; border-top: 1px solid #eee; font-size: 0.85rem; flex-wrap: wrap;">
-        <span style="display: flex; align-items: center; gap: 0.25rem;">
-            <span style="color: #666;">💰</span>
-            <strong>Market Cap:</strong> {fin.get('market_cap_formatted', 'N/A')}
-        </span>
-        <span style="display: flex; align-items: center; gap: 0.25rem;">
-            <span style="color: #666;">📊</span>
-            <strong>Revenue:</strong> {fin.get('revenue_ttm_formatted', 'N/A')}
-        </span>
-        <span style="display: flex; align-items: center; gap: 0.25rem;">
-            <span style="color: #666;">📈</span>
-            <strong>EV/Rev:</strong> {fin.get('ev_to_revenue', 'N/A')}x
-        </span>
-    </div>"""
-    
-    # Close the card div
-    card_html += "</div>"
-    
-    st.markdown(card_html, unsafe_allow_html=True)
+    # Use a container for better styling
+    with st.container():
+        # Create columns for logo, info, and score
+        col_logo, col_info, col_score = st.columns([0.5, 4, 0.5])
+        
+        with col_logo:
+            # Try to display logo with fallback to Google favicon
+            logo_html = f"""
+            <img src="{logo_primary}" 
+                 onerror="this.onerror=null; this.src='{logo_fallback1}'; this.onerror=function(){{this.style.display='none'; this.nextSibling.style.display='block'}};"
+                 style="width: 56px; height: 56px; border-radius: 8px; object-fit: contain; background: #f8f9fa; padding: 4px; border: 1px solid #e0e0e0;">
+            <div style="display: none; width: 56px; height: 56px; border-radius: 8px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; font-size: 24px; color: white; font-weight: bold; border: 1px solid #e0e0e0;">
+                {comp.get('ticker', '?')[:2]}
+            </div>
+            """
+            st.markdown(logo_html, unsafe_allow_html=True)
+        
+        with col_info:
+            st.markdown(f"### {rank}. {comp['name']}")
+            st.markdown(f"**{comp['ticker']}** • {comp['exchange']}")
+            st.markdown(f"{comp.get('business_activity', 'N/A')[:180]}...")
+            
+            # Add financial metrics if available
+            if ENHANCED_FEATURES and fin.get('market_cap_formatted'):
+                fin_cols = st.columns(3)
+                with fin_cols[0]:
+                    st.metric("Market Cap", fin.get('market_cap_formatted', 'N/A'))
+                with fin_cols[1]:
+                    st.metric("Revenue", fin.get('revenue_ttm_formatted', 'N/A'))
+                with fin_cols[2]:
+                    st.metric("EV/Rev", f"{fin.get('ev_to_revenue', 'N/A')}x")
+        
+        with col_score:
+            score_color = "#2ca02c" if score >= 5.0 else "#ff7f0e" if score >= 3.0 else "#d62728"
+            st.markdown(f'<div style="background-color: {score_color}; color: white; padding: 0.5rem; border-radius: 1rem; text-align: center; font-weight: bold;">{score:.2f}</div>', unsafe_allow_html=True)
+        
+        st.divider()
     
     # Expandable details - more compact
     with st.expander("📊 View Details", expanded=False):
@@ -673,4 +700,3 @@ if __name__ == "__main__":
     # Load history on startup
     load_search_history()
     main()
-
