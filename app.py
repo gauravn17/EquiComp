@@ -623,7 +623,7 @@ def main():
                     status_container.markdown('<div class="status-box status-analyzing">🧠 Analyzing target company...</div>', unsafe_allow_html=True)
                     
                     results = agent.find_comparables(target)
-                    )
+                    
                     
                     progress_bar.progress(100)
                     status_container.markdown('<div class="status-box status-complete">✅ Search complete!</div>', unsafe_allow_html=True)
