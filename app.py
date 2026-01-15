@@ -402,38 +402,135 @@ def main():
     tab1, tab2, tab3 = st.tabs(["🔍 New Search", "📊 Results", "📚 Database"])
     
     with tab1:
-        st.header("Find Comparable Companies")
+        # Hero section with better layout
+        st.markdown("""
+        <div style="text-align: center; padding: 2rem 0 1rem 0;">
+            <h2 style="color: #1f77b4; margin-bottom: 0.5rem;">Find Your Perfect Comparables</h2>
+            <p style="color: #666; font-size: 1.1rem;">AI-powered company analysis in seconds</p>
+        </div>
+        """, unsafe_allow_html=True)
         
-        # Input form
+        # Feature highlights
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.markdown("""
+            <div style="text-align: center; padding: 1.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; color: white; margin-bottom: 1rem;">
+                <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🎯</div>
+                <h4 style="margin: 0; color: white;">Smart Analysis</h4>
+                <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem; opacity: 0.9;">AI understands your business model</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown("""
+            <div style="text-align: center; padding: 1.5rem; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 10px; color: white; margin-bottom: 1rem;">
+                <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">⚡</div>
+                <h4 style="margin: 0; color: white;">Lightning Fast</h4>
+                <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem; opacity: 0.9;">Get results in under 30 seconds</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            st.markdown("""
+            <div style="text-align: center; padding: 1.5rem; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); border-radius: 10px; color: white; margin-bottom: 1rem;">
+                <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📊</div>
+                <h4 style="margin: 0; color: white;">Rich Insights</h4>
+                <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem; opacity: 0.9;">Financial data & visualizations</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # Input form with better styling
+        st.markdown("""
+        <div style="background: #f8f9fa; padding: 2rem; border-radius: 10px; border: 1px solid #e0e0e0;">
+        """, unsafe_allow_html=True)
+        
         with st.form("target_company_form"):
+            st.markdown("### 📝 Enter Company Details")
+            st.markdown("---")
+            
             col1, col2 = st.columns([2, 1])
             
             with col1:
                 company_name = st.text_input(
-                    "Company Name",
-                    placeholder="e.g., Palantir Technologies",
-                    help="Name of the target company"
+                    "Company Name *",
+                    placeholder="e.g., Apple Inc.",
+                    help="Name of the target company",
+                    key="company_name_input"
                 )
                 
                 company_description = st.text_area(
-                    "Business Description",
-                    height=150,
-                    placeholder="Detailed description of what the company does, its products/services, target markets, etc.",
+                    "Business Description *",
+                    height=120,
+                    placeholder="Example: Designs, develops, and sells consumer electronics, computer software, and online services. Products include iPhone, Mac, iPad, Apple Watch, and services like App Store and Apple Music.",
                     help="The more detailed, the better the results"
                 )
             
             with col2:
                 homepage_url = st.text_input(
                     "Homepage URL",
-                    placeholder="https://company.com"
+                    placeholder="https://www.apple.com",
+                    help="Optional: Company website"
                 )
                 
                 primary_sic = st.text_input(
-                    "Primary SIC (Optional)",
-                    placeholder="e.g., Prepackaged Software"
+                    "Primary SIC",
+                    placeholder="Electronic Computers",
+                    help="Optional: Industry classification"
                 )
+                
+                st.markdown("<br>", unsafe_allow_html=True)
+                st.info("💡 **Tip:** More detail = Better matches!")
             
-            submitted = st.form_submit_button("🚀 Find Comparables", use_container_width=True)
+            st.markdown("---")
+            submitted = st.form_submit_button("🚀 Find Comparables", use_container_width=True, type="primary")
+        
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+        # Use cases section
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        
+        with st.expander("💼 Popular Use Cases", expanded=False):
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("""
+                **Investment Research**
+                - Find peer companies for valuation analysis
+                - Compare financial metrics and multiples
+                - Identify investment opportunities
+                
+                **M&A Analysis**
+                - Identify acquisition targets
+                - Benchmark deal valuations
+                - Assess strategic fit
+                """)
+            with col2:
+                st.markdown("""
+                **Competitive Intelligence**
+                - Map competitive landscape
+                - Track industry trends
+                - Monitor market positioning
+                
+                **Strategic Planning**
+                - Identify strategic partners
+                - Benchmark performance
+                - Market opportunity sizing
+                """)
+        
+        with st.expander("❓ How It Works", expanded=False):
+            st.markdown("""
+            1. **AI Analysis** - Our AI analyzes your company's business model, products, and market position
+            2. **Smart Search** - We search our database of 100,000+ public companies
+            3. **Validation** - Each match is scored on business model similarity, industry fit, and scale
+            4. **Rich Data** - Get financial metrics, visualizations, and detailed company profiles
+            
+            **Powered by:**
+            - OpenAI GPT-4 for intelligent analysis
+            - Real-time financial data from Yahoo Finance
+            - Comprehensive company database
+            """)
+        
         
         # Process search
         if submitted and company_name and company_description:
@@ -700,4 +797,5 @@ if __name__ == "__main__":
     # Load history on startup
     load_search_history()
     main()
+
 
