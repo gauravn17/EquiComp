@@ -225,12 +225,12 @@ def render_company_card(comp: Dict[str, Any], rank: int):
         col_logo, col_info, col_score = st.columns([0.5, 4, 0.5])
         
         with col_logo:
-            # Try to display logo with fallback to Google favicon
+            # Display logo with fallback to ticker badge only if logo fails
             logo_html = f"""
             <img src="{logo_primary}" 
-                 onerror="this.onerror=null; this.src='{logo_fallback1}'; this.onerror=function(){{this.style.display='none'; this.nextSibling.style.display='block'}};"
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
                  style="width: 56px; height: 56px; border-radius: 8px; object-fit: contain; background: #f8f9fa; padding: 4px; border: 1px solid #e0e0e0;">
-            <div style="display: none; width: 56px; height: 56px; border-radius: 8px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; font-size: 24px; color: white; font-weight: bold; border: 1px solid #e0e0e0;">
+            <div style="display: none; width: 56px; height: 56px; border-radius: 8px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); align-items: center; justify-content: center; font-size: 20px; color: white; font-weight: bold; border: 1px solid #e0e0e0;">
                 {comp.get('ticker', '?')[:2]}
             </div>
             """
@@ -700,3 +700,4 @@ if __name__ == "__main__":
     # Load history on startup
     load_search_history()
     main()
+
