@@ -584,7 +584,7 @@ def main():
         
 
         with tab2:
-            st.header("Search Results")
+        st.header("Search Results")
         
         if st.session_state.search_results:
             results = st.session_state.search_results
