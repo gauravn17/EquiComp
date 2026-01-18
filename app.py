@@ -609,7 +609,6 @@ def main():
                 
                 with status_container:
                     st.markdown('<div class="status-box status-analyzing">⏳ Analyzing target company...</div>', unsafe_allow_html=True)
-                
                 try:
                     # Initialize agent
                     agent = ComparablesAgent(
@@ -629,9 +628,7 @@ def main():
                         results['target'] = target
                     
                     progress_bar.progress(100)
-                    
-                   
-                   status_container.markdown('<div class="status-box status-complete">✅ Search complete!</div>', unsafe_allow_html=True)
+                    status_container.markdown('<div class="status-box status-complete">✅ Search complete!</div>', unsafe_allow_html=True)
                     
                     # Enrich with financial data if enabled
                     if ENHANCED_FEATURES and enable_financials and results['comparables']:
