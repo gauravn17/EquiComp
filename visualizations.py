@@ -86,7 +86,7 @@ class CompIQVisualizer:
             color='score',
             hover_data={'name': True, 'ticker': True, 
                        'market_cap_jitter': False, 'ev_revenue_jitter': False,
-                       'market_cap': ':$,.0f', 'ev_revenue': ':.2f'},
+                       'market_cap': True, 'ev_revenue': True},
             text='ticker',  # Show ticker instead of full name
             color_continuous_scale='RdYlGn',
             labels={
