@@ -1,13 +1,6 @@
 """
-CompIQ Financial ETL Pipeline
-Production-ready ETL with metrics, error handling, and observability.
-
-Demonstrates:
-- ETL design patterns
-- Error handling and retries
-- Metrics collection
-- Logging best practices
-- Idempotent operations
+CompIQ Financial ETL Pipeline - Integrated Version
+Uses schemas for validation and observability for logging/metrics.
 """
 import time
 import hashlib
@@ -16,17 +9,19 @@ from typing import List, Dict, Optional, Any
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-import logging
 
+# Import our modules
+from schemas import CompanyInput, FinancialMetrics, DataQuality, validate_company_batch
+from observability import get_logger, get_metrics, get_tracer, log_execution
+
+# Import existing modules
 from financial_data import FinancialDataEnricher
 from database import Database
 
-# Configure structured logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s | %(levelname)s | %(name)s | %(message)s'
-)
-logger = logging.getLogger(__name__)
+# Initialize observability
+logger = get_logger("compiq.etl")
+metrics = get_metrics()
+tracer = get_tracer()
 
 
 class ETLStatus(Enum):
@@ -63,7 +58,6 @@ class ETLMetrics:
     
     @property
     def throughput(self) -> float:
-        """Records per second."""
         if self.duration_seconds == 0:
             return 0.0
         return self.records_input / self.duration_seconds
@@ -102,14 +96,7 @@ class ETLResult:
 
 class FinancialETLPipeline:
     """
-    Production-ready ETL pipeline for financial data enrichment.
-    
-    Features:
-    - Batch processing with configurable size
-    - Automatic retries on failure
-    - Metrics collection
-    - Idempotent runs via hashing
-    - Error isolation (one failure doesn't stop the pipeline)
+    Production-ready ETL pipeline with full observability.
     """
     
     def __init__(
@@ -124,101 +111,182 @@ class FinancialETLPipeline:
         self.batch_size = batch_size
         self.max_retries = max_retries
         self.retry_delay = retry_delay
-        self.metrics = ETLMetrics()
+        self.etl_metrics = ETLMetrics()
     
+    @log_execution(logger, include_args=False, include_result=False)
     def run(self, companies: List[Dict]) -> ETLResult:
-        """
-        Execute the full ETL pipeline.
+        """Execute the full ETL pipeline with tracing."""
         
-        Args:
-            companies: List of company dicts with 'name', 'ticker', 'exchange'
-        
-        Returns:
-            ETLResult with status and metrics
-        """
-        self.metrics = ETLMetrics(
-            records_input=len(companies),
-            start_time=datetime.utcnow()
-        )
-        
-        run_hash = self._generate_run_hash(companies)
-        logger.info(f"ETL started | records={len(companies)} | hash={run_hash[:8]}")
-        
-        try:
-            # Extract & Transform
-            enriched = self._extract_and_transform(companies)
+        with tracer.trace("etl.pipeline", {"companies": str(len(companies))}):
+            self.etl_metrics = ETLMetrics(
+                records_input=len(companies),
+                start_time=datetime.utcnow()
+            )
             
-            # Load
-            search_id = self._load(enriched, run_hash)
+            run_hash = self._generate_run_hash(companies)
             
-            # Determine status
-            if self.metrics.records_failed == 0:
-                status = ETLStatus.COMPLETED
-            elif self.metrics.records_enriched > 0:
-                status = ETLStatus.PARTIAL
-            else:
+            logger.info(
+                "ETL pipeline started",
+                records=len(companies),
+                run_hash=run_hash[:8],
+                batch_size=self.batch_size
+            )
+            
+            # Track in global metrics
+            metrics.increment("etl.runs.started")
+            metrics.gauge("etl.current.records", len(companies))
+            
+            try:
+                # Validate input using schemas
+                with tracer.trace("etl.validate"):
+                    valid_companies, validation_errors = self._validate_with_schemas(companies)
+                    
+                    if validation_errors:
+                        logger.warning(
+                            "Validation errors",
+                            error_count=len(validation_errors),
+                            errors=validation_errors[:5]  # Log first 5
+                        )
+                        self.etl_metrics.records_skipped = len(validation_errors)
+                
+                # Extract & Transform
+                with tracer.trace("etl.extract_transform"):
+                    enriched = self._extract_and_transform(valid_companies)
+                
+                # Load
+                with tracer.trace("etl.load"):
+                    search_id = self._load(enriched, run_hash)
+                
+                # Determine status
+                if self.etl_metrics.records_failed == 0:
+                    status = ETLStatus.COMPLETED
+                elif self.etl_metrics.records_enriched > 0:
+                    status = ETLStatus.PARTIAL
+                else:
+                    status = ETLStatus.FAILED
+                
+                metrics.increment(f"etl.runs.{status.value}")
+                
+            except Exception as e:
+                logger.exception("ETL pipeline failed", e)
+                self.etl_metrics.errors.append({"pipeline_error": str(e)})
                 status = ETLStatus.FAILED
+                search_id = -1
+                metrics.increment("etl.runs.error")
             
-        except Exception as e:
-            logger.error(f"ETL pipeline failed: {str(e)}")
-            self.metrics.errors.append({"pipeline_error": str(e)})
-            status = ETLStatus.FAILED
-            search_id = -1
+            finally:
+                self.etl_metrics.end_time = datetime.utcnow()
+                
+                # Record timing
+                metrics.timer("etl.duration", self.etl_metrics.duration_seconds * 1000)
+                metrics.histogram("etl.success_rate", self.etl_metrics.success_rate)
+            
+            result = ETLResult(
+                search_id=search_id,
+                status=status,
+                metrics=self.etl_metrics,
+                run_hash=run_hash
+            )
+            
+            logger.info(
+                "ETL pipeline completed",
+                status=status.value,
+                search_id=search_id,
+                duration_seconds=self.etl_metrics.duration_seconds,
+                success_rate=f"{self.etl_metrics.success_rate:.2%}"
+            )
+            
+            return result
+    
+    def _validate_with_schemas(self, companies: List[Dict]) -> tuple[List[Dict], List[Dict]]:
+        """Validate companies using Pydantic schemas."""
+        valid = []
+        errors = []
         
-        finally:
-            self.metrics.end_time = datetime.utcnow()
+        for i, company in enumerate(companies):
+            try:
+                # Validate with Pydantic
+                validated = CompanyInput(
+                    name=company.get('name', ''),
+                    ticker=company.get('ticker', ''),
+                    exchange=company.get('exchange', 'OTHER'),
+                    description=company.get('description'),
+                    homepage_url=company.get('homepage_url')
+                )
+                valid.append(validated.model_dump())
+                
+            except Exception as e:
+                errors.append({
+                    "index": i,
+                    "ticker": company.get('ticker', 'unknown'),
+                    "error": str(e)
+                })
+                self.etl_metrics.errors.append({
+                    "type": "validation",
+                    "ticker": company.get('ticker'),
+                    "error": str(e)
+                })
         
-        result = ETLResult(
-            search_id=search_id,
-            status=status,
-            metrics=self.metrics,
-            run_hash=run_hash
-        )
-        
-        logger.info(f"ETL completed | status={status.value} | {self.metrics.to_dict()}")
-        return result
+        return valid, errors
     
     def _extract_and_transform(self, companies: List[Dict]) -> List[Dict]:
-        """
-        Extract data from Yahoo Finance and transform to standard format.
-        Processes in batches with error isolation.
-        """
-        logger.info(f"ETL Extract+Transform | batch_size={self.batch_size}")
+        """Extract and transform with batch tracking."""
+        
+        logger.info(
+            "Starting extract & transform",
+            batch_size=self.batch_size,
+            total_companies=len(companies)
+        )
         
         enriched_all = []
         
-        # Process in batches
         for i in range(0, len(companies), self.batch_size):
             batch = companies[i:i + self.batch_size]
             batch_num = (i // self.batch_size) + 1
             total_batches = (len(companies) + self.batch_size - 1) // self.batch_size
             
-            logger.info(f"Processing batch {batch_num}/{total_batches}")
-            
-            try:
-                enriched_batch = self._process_batch_with_retry(batch)
-                enriched_all.extend(enriched_batch)
+            with tracer.trace("etl.batch", {"batch": str(batch_num)}):
+                logger.info(
+                    "Processing batch",
+                    batch=batch_num,
+                    total=total_batches,
+                    size=len(batch)
+                )
                 
-                # Count successes/failures
-                for company in enriched_batch:
-                    if company.get('financials', {}).get('data_quality') == 'unavailable':
-                        self.metrics.records_failed += 1
-                    else:
-                        self.metrics.records_enriched += 1
+                try:
+                    enriched_batch = self._process_batch_with_retry(batch)
+                    enriched_all.extend(enriched_batch)
+                    
+                    # Count by data quality
+                    for company in enriched_batch:
+                        fin = company.get('financials', {})
+                        quality = fin.get('data_quality', 'unavailable')
                         
-            except Exception as e:
-                logger.error(f"Batch {batch_num} failed: {str(e)}")
-                self.metrics.records_failed += len(batch)
-                self.metrics.errors.append({
-                    "batch": batch_num,
-                    "error": str(e),
-                    "tickers": [c.get('ticker') for c in batch]
-                })
+                        if quality == 'unavailable':
+                            self.etl_metrics.records_failed += 1
+                        else:
+                            self.etl_metrics.records_enriched += 1
+                    
+                    metrics.increment("etl.batches.success")
+                    
+                except Exception as e:
+                    logger.error(
+                        "Batch failed",
+                        batch=batch_num,
+                        error=str(e)
+                    )
+                    self.etl_metrics.records_failed += len(batch)
+                    self.etl_metrics.errors.append({
+                        "type": "batch",
+                        "batch": batch_num,
+                        "error": str(e)
+                    })
+                    metrics.increment("etl.batches.error")
         
         return enriched_all
     
     def _process_batch_with_retry(self, batch: List[Dict]) -> List[Dict]:
-        """Process a batch with retry logic."""
+        """Process batch with retry logic."""
         last_error = None
         
         for attempt in range(self.max_retries):
@@ -226,26 +294,30 @@ class FinancialETLPipeline:
                 return self.enricher.enrich_batch(batch, show_progress=False)
             except Exception as e:
                 last_error = e
-                logger.warning(f"Batch attempt {attempt + 1} failed: {str(e)}")
+                logger.warning(
+                    "Batch attempt failed",
+                    attempt=attempt + 1,
+                    max_attempts=self.max_retries,
+                    error=str(e)
+                )
+                metrics.increment("etl.retries")
                 if attempt < self.max_retries - 1:
                     time.sleep(self.retry_delay * (attempt + 1))
         
         raise last_error
     
     def _load(self, enriched_companies: List[Dict], run_hash: str) -> int:
-        """
-        Load enriched data to database.
-        Uses existing save_search for compatibility.
-        """
-        logger.info(f"ETL Load | records={len(enriched_companies)}")
+        """Load to database."""
+        
+        logger.info("Loading to database", records=len(enriched_companies))
         
         metadata = {
-            "source": "etl_pipeline",
+            "source": "etl_pipeline_v2",
             "run_type": "financial_enrichment",
             "run_hash": run_hash,
             "timestamp": datetime.utcnow().isoformat(),
-            "metrics": self.metrics.to_dict(),
-            "pipeline_version": "2.0"
+            "metrics": self.etl_metrics.to_dict(),
+            "pipeline_version": "2.0.0"
         }
         
         search_id = self.db.save_search(
@@ -255,14 +327,12 @@ class FinancialETLPipeline:
             metadata=metadata
         )
         
+        metrics.increment("etl.records.loaded", value=len(enriched_companies))
+        
         return search_id
     
     def _generate_run_hash(self, companies: List[Dict]) -> str:
-        """
-        Generate deterministic hash for idempotent runs.
-        Same input always produces same hash.
-        """
-        # Sort for determinism
+        """Generate deterministic hash."""
         sorted_companies = sorted(
             companies,
             key=lambda x: (x.get("ticker", ""), x.get("exchange", ""))
@@ -271,68 +341,40 @@ class FinancialETLPipeline:
         return hashlib.sha256(payload.encode()).hexdigest()
     
     def validate_input(self, companies: List[Dict]) -> tuple[bool, List[str]]:
-        """
-        Validate input data before processing.
-        
-        Returns:
-            (is_valid, list of validation errors)
-        """
+        """Validate input data."""
         errors = []
         
         if not companies:
             errors.append("Empty company list")
             return False, errors
         
-        required_fields = ['ticker', 'exchange']
-        
         for i, company in enumerate(companies):
-            for field in required_fields:
-                if not company.get(field):
-                    errors.append(f"Company {i}: missing required field '{field}'")
+            if not company.get('ticker'):
+                errors.append(f"Company {i}: missing ticker")
+            if not company.get('exchange'):
+                errors.append(f"Company {i}: missing exchange")
         
         return len(errors) == 0, errors
 
 
-# Convenience function for simple usage
+# Convenience function
 def run_financial_etl(
     companies: List[Dict],
     db_path: str = "comparables.db"
 ) -> Dict[str, Any]:
-    """
-    Run financial ETL pipeline.
-    
-    Args:
-        companies: List of company dicts with 'ticker' and 'exchange'
-        db_path: Database path
-    
-    Returns:
-        Result dict with status and metrics
-    """
+    """Run financial ETL pipeline."""
     pipeline = FinancialETLPipeline(db_path=db_path)
     result = pipeline.run(companies)
     return result.to_dict()
 
 
 if __name__ == "__main__":
-    # Example usage
+    # Test run
     test_companies = [
         {"name": "Apple Inc.", "ticker": "AAPL", "exchange": "NASDAQ"},
-        {"name": "Microsoft Corporation", "ticker": "MSFT", "exchange": "NASDAQ"},
-        {"name": "Amazon.com Inc.", "ticker": "AMZN", "exchange": "NASDAQ"},
-        {"name": "Alphabet Inc.", "ticker": "GOOGL", "exchange": "NASDAQ"},
-        {"name": "Meta Platforms", "ticker": "META", "exchange": "NASDAQ"},
+        {"name": "Microsoft", "ticker": "MSFT", "exchange": "NASDAQ"},
+        {"name": "Google", "ticker": "GOOGL", "exchange": "NASDAQ"},
     ]
     
-    pipeline = FinancialETLPipeline()
-    
-    # Validate
-    is_valid, errors = pipeline.validate_input(test_companies)
-    if not is_valid:
-        print(f"Validation failed: {errors}")
-    else:
-        # Run
-        result = pipeline.run(test_companies)
-        print("\n" + "=" * 50)
-        print("ETL Results")
-        print("=" * 50)
-        print(json.dumps(result.to_dict(), indent=2))
+    result = run_financial_etl(test_companies)
+    print(json.dumps(result, indent=2))
