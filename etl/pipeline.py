@@ -5,6 +5,7 @@ Runs financial enrichment in batch mode and persists
 results using the existing Database schema.
 """
 
+import time
 import hashlib
 import json
 from typing import List, Dict
@@ -29,9 +30,7 @@ class FinancialETLPipeline:
         return self.enricher.enrich_batch(companies, show_progress=True)
 
     def _run_hash(self, companies: List[Dict]) -> str:
-        """
-        Generate deterministic hash for idempotent ETL runs.
-        """
+        """Generate deterministic hash for idempotent ETL runs."""
         payload = json.dumps(
             sorted(companies, key=lambda x: (x.get("ticker"), x.get("exchange"))),
             sort_keys=True
@@ -63,8 +62,17 @@ class FinancialETLPipeline:
         return search_id
 
     def run(self, companies: List[Dict]) -> int:
+        start = time.time()
+
         enriched = self.extract_and_transform(companies)
-        return self.load(enriched)
+        search_id = self.load(enriched)
+
+        duration = round(time.time() - start, 2)
+        logger.info(
+            f"ETL metrics | records={len(companies)} | duration={duration}s"
+        )
+
+        return search_id
 
 
 if __name__ == "__main__":
