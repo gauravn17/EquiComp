@@ -10,8 +10,8 @@ Demonstrates:
 """
 import sqlite3
 import logging
-from datetime import datetime
 from typing import List, Dict, Any, Optional, Callable
+from datetime import datetime, timezone
 from dataclasses import dataclass
 from pathlib import Path
 import json
