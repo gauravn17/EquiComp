@@ -5,6 +5,8 @@ Runs financial enrichment in batch mode and persists
 results using the existing Database schema.
 """
 
+import hashlib
+import json
 from typing import List, Dict
 import logging
 from datetime import datetime
@@ -22,21 +24,30 @@ class FinancialETLPipeline:
         self.db = Database(db_path=db_path)
 
     def extract_and_transform(self, companies: List[Dict]) -> List[Dict]:
-        """
-        Extract + transform financial data using Yahoo Finance.
-        """
+        """Extract + transform financial data using Yahoo Finance."""
         logger.info("ETL: Extract + Transform")
         return self.enricher.enrich_batch(companies, show_progress=True)
 
+    def _run_hash(self, companies: List[Dict]) -> str:
+        """
+        Generate deterministic hash for idempotent ETL runs.
+        """
+        payload = json.dumps(
+            sorted(companies, key=lambda x: (x.get("ticker"), x.get("exchange"))),
+            sort_keys=True
+        )
+        return hashlib.sha256(payload.encode()).hexdigest()
+
     def load(self, enriched_companies: List[Dict]) -> int:
-        """
-        Load enriched company data using existing save_search logic.
-        """
+        """Load enriched company data using existing save_search logic."""
         logger.info("ETL: Load")
+
+        run_hash = self._run_hash(enriched_companies)
 
         metadata = {
             "source": "etl",
             "run_type": "financial_enrichment",
+            "run_hash": run_hash,
             "timestamp": datetime.utcnow().isoformat(),
             "num_records": len(enriched_companies),
         }
