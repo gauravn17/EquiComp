@@ -630,7 +630,7 @@ def main():
                     
                     progress_bar.progress(100)
                     
-                   progress_bar.progress(100)
+                   
                    status_container.markdown('<div class="status-box status-complete">✅ Search complete!</div>', unsafe_allow_html=True)
                     
                     # Enrich with financial data if enabled
