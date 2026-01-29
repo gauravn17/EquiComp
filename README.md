@@ -9,9 +9,11 @@ An intelligent, agentic system for finding publicly-traded comparable companies 
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.28%2B-red)
 
 ## 🎯 Features!
+<img width="1710" height="1107" alt="Screenshot 2026-01-14 at 9 08 24 PM" src="https://github.com/user-attachments/assets/bd80be1a-94f2-42a6-af2f-4c6c5ae434c9" />
+
 ![Uploading Screenshot 2026-01-14 at 9.08.24 PM.png…]()
 
-[Uploading Screenshot 2026-01-15 at 12.29.57 PM.png…]()
+
 
 <img width="1710" height="1107" alt="Screenshot 2026-01-14 at 9 08 11 PM" src="https://github.com/user-attachments/assets/bcc69844-df4a-40cd-9474-9bd9067bcc16" />
 
