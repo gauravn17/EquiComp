@@ -1,5 +1,8 @@
 # 🔍 CompIQ - Agentic AI Comparables Finder
 
+Try it live at : https://compiq.streamlit.app/
+
+
 <img src="compiq.png" alt="CompIQ Logo" width="750"/>
 
 An intelligent, agentic system for finding publicly-traded comparable companies using AI-powered analysis.
