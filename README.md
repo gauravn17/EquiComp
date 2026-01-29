@@ -1,4 +1,4 @@
-<img width="1700" height="1023" alt="Screenshot 2026-01-15 at 12 29 57 PM" src="https://github.com/user-attachments/assets/39d41db0-65d5-4da2-acce-a35bcd3ac684" /># 🔍 CompIQ - Agentic AI Comparables Finder
+# 🔍 CompIQ - Agentic AI Comparables Finder
 
 <img src="compiq.png" alt="CompIQ Logo" width="750"/>
 
