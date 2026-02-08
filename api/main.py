@@ -1,9 +1,8 @@
 """
-CompIQ FastAPI Backend - Integrated Version
+CompIQ FastAPI Backend
 Connects all modules: ETL, schemas, observability, migrations.
 
 Run with: uvicorn api.main:app --reload --port 8000
-Docs at: http://localhost:8000/docs
 """
 from fastapi import FastAPI, HTTPException, Query, BackgroundTasks, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
