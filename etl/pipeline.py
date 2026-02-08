@@ -1,5 +1,5 @@
 """
-CompIQ Financial ETL Pipeline - Integrated Version
+CompIQ Financial ETL Pipeline
 Uses schemas for validation and observability for logging/metrics.
 """
 import time
